@@ -1,0 +1,1173 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>S.S. Quiz Orbit - Leaderboard Edition</title>
+    
+    <!-- Tailwind CSS -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    
+    <!-- React & ReactDOM -->
+    <script crossorigin src="https://unpkg.com/react@18/umd/react.development.js"></script>
+    <script crossorigin src="https://unpkg.com/react-dom@18/umd/react-dom.development.js"></script>
+    
+    <!-- Babel -->
+    <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
+
+    <!-- Google Fonts -->
+    <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;500;600;700;800;900&family=Playfair+Display:wght@700&display=swap" rel="stylesheet">
+
+    <!-- FIREBASE SDK -->
+    <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-app-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-database-compat.js"></script>
+
+    <style>
+        body { 
+            font-family: 'Outfit', sans-serif; 
+            overflow-x: hidden;
+            background-color: #0a192f; 
+            color: #e2e8f0;
+        }
+        .deep-blue-bg {
+            position: fixed; top: 0; left: 0; width: 100%; height: 100%; z-index: -2;
+            background: linear-gradient(135deg, #0f2027 0%, #203a43 50%, #2c5364 100%); 
+            background: radial-gradient(circle at 50% 50%, #1e3a8a 0%, #0f172a 100%);
+        }
+        .grid-overlay {
+            position: fixed; top: 0; left: 0; width: 100%; height: 100%; z-index: -1;
+            background-image: linear-gradient(rgba(255, 255, 255, 0.03) 1px, transparent 1px),
+            linear-gradient(90deg, rgba(255, 255, 255, 0.03) 1px, transparent 1px);
+            background-size: 40px 40px;
+            opacity: 0.4;
+        }
+        .float { animation: float 6s ease-in-out infinite; }
+        @keyframes float { 
+            0% { transform: translateY(0px); } 
+            50% { transform: translateY(-20px); } 
+            100% { transform: translateY(0px); } 
+        }
+        .glass-panel {
+            background: rgba(30, 41, 59, 0.6);
+            backdrop-filter: blur(12px);
+            border: 1px solid rgba(255, 255, 255, 0.08);
+            box-shadow: 0 8px 32px rgba(0, 0, 0, 0.3);
+        }
+        .glass-card {
+            background: linear-gradient(180deg, rgba(255, 255, 255, 0.1) 0%, rgba(255, 255, 255, 0.02) 100%);
+            border: 1px solid rgba(255, 255, 255, 0.1);
+            backdrop-filter: blur(4px);
+            transition: all 0.3s ease;
+            cursor: pointer;
+        }
+        .glass-card:hover {
+            border-color: #60a5fa;
+            background: linear-gradient(180deg, rgba(255, 255, 255, 0.15) 0%, rgba(255, 255, 255, 0.05) 100%);
+            box-shadow: 0 10px 40px -10px rgba(37, 99, 235, 0.5);
+        }
+        .fade-in { animation: fadeIn 0.8s ease-out forwards; opacity: 0; transform: translateY(20px); }
+        @keyframes fadeIn { to { opacity: 1; transform: translateY(0); } }
+        
+        .omr-bubble { width: 32px; height: 32px; border-radius: 50%; border: 2px solid #64748b; display: flex; align-items: center; justify-content: center; font-weight: bold; cursor: pointer; transition: 0.2s; color: #94a3b8; background: #1e293b; }
+        .omr-bubble:hover { border-color: #60a5fa; color: white; transform: scale(1.1); }
+        .omr-bubble.selected { background-color: #2563eb; color: white; border-color: #2563eb; transform: scale(1.1); box-shadow: 0 0 10px rgba(37, 99, 235, 0.5); }
+        .loader { border: 4px solid #f3f3f3; border-top: 4px solid #3498db; border-radius: 50%; width: 40px; height: 40px; animation: spin 2s linear infinite; }
+        @keyframes spin { 0% { transform: rotate(0deg); } 100% { transform: rotate(360deg); } }
+        
+        /* Rank Colors */
+        .rank-1 { color: #fbbf24; text-shadow: 0 0 10px rgba(251, 191, 36, 0.5); } /* Gold */
+        .rank-2 { color: #94a3b8; text-shadow: 0 0 10px rgba(148, 163, 184, 0.5); } /* Silver */
+        .rank-3 { color: #b45309; text-shadow: 0 0 10px rgba(180, 83, 9, 0.5); } /* Bronze */
+
+        /* --- FIXED PRINT STYLES --- */
+        @media print {
+            @page { size: A4 portrait; margin: 0; }
+            body, #root, .deep-blue-bg, .grid-overlay { visibility: hidden; margin: 0; padding: 0; background: white; }
+            #report-modal { visibility: visible !important; position: fixed; left: 0; top: 0; width: 100%; height: 100%; margin: 0; padding: 0; background: white; z-index: 99999; display: block !important; }
+            #report-card { visibility: visible !important; width: 100% !important; height: 100% !important; box-shadow: none !important; border: none !important; position: absolute; top: 0; left: 0; }
+            #report-card img { width: 100%; height: 100%; object-fit: fill; }
+            .no-print { display: none !important; }
+            * { -webkit-print-color-adjust: exact !important; print-color-adjust: exact !important; }
+        }
+
+        ::-webkit-scrollbar { width: 8px; }
+        ::-webkit-scrollbar-track { background: #0f172a; }
+        ::-webkit-scrollbar-thumb { background: #334155; border-radius: 4px; }
+    </style>
+</head>
+<body>
+    
+    <div class="deep-blue-bg"></div>
+    <div class="grid-overlay"></div>
+    <div id="root"></div>
+
+    <script>
+        // --- FIREBASE CONFIG ---
+        const firebaseConfig = {
+            apiKey: "AIzaSyDNSM2DgTPdicvSdo2YZg7zwJwh1m9P9nY",
+            authDomain: "ssquizorbit.firebaseapp.com",
+            databaseURL: "https://ssquizorbit-default-rtdb.firebaseio.com",
+            projectId: "ssquizorbit",
+            storageBucket: "ssquizorbit.firebasestorage.app",
+            messagingSenderId: "224036105262",
+            appId: "1:224036105262:web:c6daddc9e8f0e4c8fc83bf"
+        };
+        if (!firebase.apps.length) { firebase.initializeApp(firebaseConfig); }
+        const db = firebase.database();
+    </script>
+
+    <script type="text/babel">
+        const { useState, useEffect, useRef } = React;
+        const COURSES = ["ADCA", "DCA", "DCAA", "CCA", "PGDCA", "DIT", "IKO", "CCC", "DOAP", "GCCA", "DTP", "O-LEVEL"];
+        
+        // --- ICONS ---
+        const Icon = ({ children, size = 20, className="" }) => <svg className={className} xmlns="http://www.w3.org/2000/svg" width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">{children}</svg>;
+        const Icons = {
+            Home: (p)=><Icon {...p}><path d="M3 9l9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"></path><polyline points="9 22 9 12 15 12 15 22"></polyline></Icon>,
+            Cpu: (p)=><Icon {...p}><rect x="4" y="4" width="16" height="16" rx="2" ry="2"></rect><rect x="9" y="9" width="6" height="6"></rect><line x1="9" y1="1" x2="9" y2="4"></line><line x1="15" y1="1" x2="15" y2="4"></line><line x1="9" y1="20" x2="9" y2="23"></line><line x1="15" y1="20" x2="15" y2="23"></line></Icon>,
+            User: (p)=><Icon {...p}><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"></path><circle cx="12" cy="7" r="4"></circle></Icon>,
+            Edit: (p)=><Icon {...p}><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"></path><path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"></path></Icon>,
+            Trash: (p)=><Icon {...p}><polyline points="3 6 5 6 21 6"></polyline><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"></path></Icon>,
+            Lock: (p)=><Icon {...p}><rect x="3" y="11" width="18" height="11" rx="2" ry="2"></rect><path d="M7 11V7a5 5 0 0 1 10 0v4"></path></Icon>,
+            Book: (p)=><Icon {...p}><path d="M4 19.5A2.5 2.5 0 0 1 6.5 17H20"></path><path d="M6.5 2H20v20H6.5A2.5 2.5 0 0 1 4 19.5v-15A2.5 2.5 0 0 1 6.5 2z"></path></Icon>,
+            Shield: (p)=><Icon {...p}><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"></path></Icon>,
+            ArrowLeft: (p)=><Icon {...p}><line x1="19" y1="12" x2="5" y2="12"></line><polyline points="12 19 5 12 12 5"></polyline></Icon>,
+            Upload: (p)=><Icon {...p}><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path><polyline points="17 8 12 3 7 8"></polyline><line x1="12" y1="3" x2="12" y2="15"></line></Icon>,
+            Check: (p)=><Icon {...p}><polyline points="20 6 9 17 4 12"></polyline></Icon>,
+            X: (p)=><Icon {...p}><line x1="18" y1="6" x2="6" y2="18"></line><line x1="6" y1="6" x2="18" y2="18"></line></Icon>,
+            Trophy: (p)=><Icon {...p}><path d="M8 21h8m-4-9v9m-6.7-6.27a4 4 0 1 1 5.27-5.27 4 4 0 0 1 5.27 5.27v.73h-10.54z"></path><path d="M12 2a4 4 0 0 1 4 4v2H8V6a4 4 0 0 1 4-4z"></path></Icon>,
+            Save: (p)=><Icon {...p}><path d="M19 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11l5 5v11a2 2 0 0 1-2 2z"></path><polyline points="17 21 17 13 7 13 7 21"></polyline><polyline points="7 3 7 8 15 8"></polyline></Icon>,
+            Clock: (p)=><Icon {...p}><circle cx="12" cy="12" r="10"></circle><polyline points="12 6 12 12 16 14"></polyline></Icon>,
+            Building: (p)=><Icon {...p}><rect x="4" y="2" width="16" height="20" rx="2" ry="2"></rect><line x1="9" y1="22" x2="9" y2="22.01"></line><line x1="15" y1="22" x2="15" y2="22.01"></line><line x1="9" y1="18" x2="9" y2="18.01"></line><line x1="15" y1="18" x2="15" y2="18.01"></line></Icon>
+        };
+
+        const DB = {
+            push: (path, data) => db.ref(path).push(data),
+            set: (path, data) => db.ref(path).set(data),
+            remove: (path) => db.ref(path).remove(),
+            convertFileToBase64: (file) => new Promise((res, rej) => { const r = new FileReader(); r.readAsDataURL(file); r.onload=()=>res(r.result); r.onerror=rej; })
+        };
+
+        const CountUp = ({ end, duration = 2000 }) => {
+            const [count, setCount] = useState(0);
+            useEffect(() => {
+                let start = 0;
+                if(end === 0) return;
+                const increment = end / (duration / 16);
+                const timer = setInterval(() => {
+                    start += increment;
+                    if (start >= end) {
+                        setCount(end);
+                        clearInterval(timer);
+                    } else {
+                        setCount(Math.ceil(start));
+                    }
+                }, 16);
+                return () => clearInterval(timer);
+            }, [end, duration]);
+            return <span>{count}+</span>;
+        };
+
+        const ExamTimer = ({ duration, startTime, onTimeUp }) => {
+            const calculateTimeLeft = () => {
+                if (!duration || !startTime) return 0;
+                const endTime = startTime + (duration * 60 * 1000);
+                const now = Date.now();
+                const diff = Math.ceil((endTime - now) / 1000);
+                return diff > 0 ? diff : 0;
+            };
+
+            const [timeLeft, setTimeLeft] = useState(calculateTimeLeft());
+
+            useEffect(() => {
+                if (!duration || !startTime) return;
+                const timer = setInterval(() => {
+                    const remaining = calculateTimeLeft();
+                    setTimeLeft(remaining);
+                    if (remaining <= 0) {
+                        clearInterval(timer);
+                        onTimeUp(); 
+                    }
+                }, 1000);
+                return () => clearInterval(timer);
+            }, [duration, startTime]);
+
+            const formatTime = (seconds) => {
+                const m = Math.floor(seconds / 60);
+                const s = seconds % 60;
+                return `${m.toString().padStart(2, '0')}:${s.toString().padStart(2, '0')}`;
+            };
+
+            if (!duration) return null;
+
+            return (
+                <div className={`flex items-center gap-2 px-4 py-2 rounded-lg font-mono font-bold text-xl ${timeLeft < 60 ? 'bg-red-500/20 text-red-500 animate-pulse border border-red-500' : 'bg-slate-800 text-cyan-400 border border-cyan-500/30'}`}>
+                    <Icons.Clock size={20} />
+                    {formatTime(timeLeft)}
+                </div>
+            );
+        };
+
+        function Toast({ toasts }) {
+            return (
+                <div className="fixed top-6 right-6 z-[200] flex flex-col gap-3 pointer-events-none">
+                    {toasts.map(t => (
+                        <div key={t.id} className={`flex items-center gap-3 px-5 py-4 rounded-xl shadow-2xl glass-panel border-l-4 ${t.type==='error'?'border-rose-500':'border-emerald-500'} animate-[bounce_0.5s]`}>
+                            <div className="text-sm font-semibold text-white">{t.msg}</div>
+                        </div>
+                    ))}
+                </div>
+            );
+        }
+
+        function App() {
+            const [users, setUsers] = useState([]);
+            const [quizzes, setQuizzes] = useState([]);
+            const [results, setResults] = useState([]);
+            const [user, setUser] = useState(null);
+            const [view, setView] = useState('landing');
+            const [toasts, setToasts] = useState([]);
+            const [loading, setLoading] = useState(true);
+
+            const notify = (msg, type='success') => { const id = Date.now(); setToasts(p => [...p, { id, msg, type }]); setTimeout(() => setToasts(p => p.filter(t => t.id !== id)), 4000); };
+
+            useEffect(() => {
+                const uRef = db.ref('users'); const qRef = db.ref('quizzes'); const rRef = db.ref('results');
+                uRef.on('value', s => { setUsers(s.val() ? Object.entries(s.val()).map(([k,v])=>({...v,id:k})) : []); setLoading(false); });
+                qRef.on('value', s => setQuizzes(s.val() ? Object.entries(s.val()).map(([k,v])=>({...v,id:k})) : []));
+                rRef.on('value', s => setResults(s.val() ? Object.entries(s.val()).map(([k,v])=>({...v,id:k})) : []));
+                const s = localStorage.getItem("ss_session");
+                if(s) { setUser(JSON.parse(s)); setView('dashboard'); }
+                return () => { uRef.off(); qRef.off(); rRef.off(); };
+            }, []);
+
+            useEffect(() => { if(user) localStorage.setItem("ss_session", JSON.stringify(user)); else localStorage.removeItem("ss_session"); }, [user]);
+
+            const registerPractice = (data) => {
+                if(users.some(u=>u.username===data.username)) return notify("Username Taken", "error");
+                const u = {...data, role:'student', centerId: 'global', joined:new Date().toISOString()};
+                DB.push('users', u); setUser(u); setView('dashboard'); notify("Welcome to Practice Zone");
+            };
+
+            const examLogin = (rollNo, password) => {
+                const u = users.find(x => x.username === rollNo && x.password === password && x.role === 'exam_taker');
+                if(u) { setUser(u); setView('dashboard'); notify(`Logged in as ${u.name}`); } else notify("Invalid Credentials", "error");
+            };
+            
+            const adminLogin = (c) => {
+                // SUPER ADMIN CHECK
+                const _u = "b2ZmaWNlLnNzaWNlQGdtYWlsLmNvbQ=="; const _p = "U3NAMjA3NDAzIyY="; 
+                try {
+                    if (btoa(c.username) === _u && btoa(c.password) === _p) {
+                        setUser({ name: "Super Admin", role: "super_admin", username: c.username, id: "master_admin" });
+                        setView('dashboard'); notify("Secure Super Admin Access Granted"); return;
+                    }
+                } catch(e) {}
+                
+                // CENTER ADMIN CHECK
+                const u = users.find(x => x.username === c.username && x.password === c.password && x.role === 'center_admin');
+                if(u) { 
+                    setUser(u); setView('dashboard'); notify(`Welcome ${u.centerName}`); 
+                } else { 
+                    notify("Wrong Credentials", "error"); 
+                }
+            };
+
+            const handleAddCenter = (data) => {
+                if(users.some(u => u.username === data.username)) return notify("Username already exists", "error");
+                DB.push('users', {
+                    ...data,
+                    role: 'center_admin',
+                    joined: new Date().toISOString()
+                }).then(() => notify("Coaching Center Added Successfully"));
+            };
+
+            const handleSaveQuiz = (q) => {
+                const quizData = { ...q, centerId: user.role === 'super_admin' ? 'global' : user.id };
+                DB.push('quizzes', quizData).then(() => notify("Exam Saved Successfully!")).catch(e => notify("Save Failed: " + e.message, "error"));
+            };
+            
+            const handleUpdateQuiz = (q) => {
+                DB.set(`quizzes/${q.id}`, q).then(() => notify("Exam Updated Successfully!")).catch(e => notify("Update Failed: " + e.message, "error"));
+            };
+
+            const handleAddStudent = (d) => {
+                if(users.some(u=>u.username===d.username)) return notify("Roll No Exists","error");
+                const studentData = {
+                    ...d,
+                    role: 'exam_taker',
+                    centerId: user.role === 'super_admin' ? 'global' : user.id,
+                    centerName: user.role === 'super_admin' ? 'S.S. Institute (Global)' : user.centerName || user.name
+                };
+                DB.push('users', studentData); notify("Student Added");
+            };
+
+            if(loading) return <div className="min-h-screen flex items-center justify-center text-white"><div className="loader"></div></div>;
+
+            return (
+                <div className="min-h-screen flex flex-col font-sans">
+                    <Toast toasts={toasts} />
+                    {view === 'landing' && <LandingPage onNav={setView} users={users} quizzes={quizzes} results={results} />}
+                    {['auth_practice', 'auth_admin', 'auth_exam'].includes(view) && (
+                        <AuthPage mode={view} onLogin={(u)=>{setUser(u);setView('dashboard');}} onAdminLogin={adminLogin} onRegister={registerPractice} onExamLogin={examLogin} users={users} onBack={()=>setView('landing')} notify={notify} />
+                    )}
+                    {view === 'dashboard' && user && (
+                        <>
+                            <Navbar user={user} onLogout={()=>{setUser(null);setView('landing'); notify("Logged Out");}} onHome={()=>setView('dashboard')} />
+                            <main className="flex-grow pt-24 pb-6 px-4 md:px-8 h-screen overflow-hidden">
+                                {(user.role === 'super_admin' || user.role === 'center_admin') ? (
+                                    <AdminDashboard 
+                                        user={user}
+                                        quizzes={quizzes} 
+                                        users={users} 
+                                        results={results} 
+                                        onAddUser={handleAddStudent} 
+                                        onAddCenter={handleAddCenter}
+                                        onDeleteUser={(id)=>DB.remove(`users/${id}`)} 
+                                        onDeleteResult={(id)=>DB.remove(`results/${id}`)} 
+                                        onSaveQuiz={handleSaveQuiz} 
+                                        onUpdateQuiz={handleUpdateQuiz} 
+                                        onDeleteQuiz={(id)=>DB.remove(`quizzes/${id}`)} 
+                                        notify={notify} 
+                                    />
+                                ) : (
+                                    <StudentDashboard user={user} quizzes={quizzes} results={results} onSave={(r)=>{DB.push('results', {...r, centerId: user.centerId || 'global'}); notify("Submitted! Added to History.");}} />
+                                )}
+                            </main>
+                        </>
+                    )}
+                </div>
+            );
+        }
+
+        // --- COMPONENTS ---
+        function LandingPage({ onNav, users, quizzes, results }) {
+            const stats = {
+                students: users.filter(u => u.role === 'exam_taker').length + 100, 
+                exams: quizzes.length + 15,
+                taken: results.length + 250
+            };
+
+            // NEW LEADERBOARD LOGIC
+            const topScorers = results.sort((a,b) => b.score - a.score).slice(0, 6);
+
+            return (
+                <div className="min-h-screen flex flex-col items-center justify-center p-6 relative overflow-hidden">
+                    <div className="text-center max-w-6xl z-10 fade-in w-full flex flex-col items-center">
+                        
+                        <div className="inline-flex items-center gap-2 px-6 py-2 rounded-full border border-blue-400/30 bg-[#112240] text-blue-100 text-xs font-bold tracking-widest uppercase mb-6 shadow-[0_0_15px_rgba(59,130,246,0.3)]">
+                            <span className="w-2 h-2 rounded-full bg-cyan-400 shadow-[0_0_10px_#22d3ee]"></span>
+                            OFFICIAL EXAM PORTAL
+                        </div>
+
+                        <h1 className="text-6xl md:text-8xl font-black mb-6 drop-shadow-2xl tracking-tight">
+                            <span className="text-white">S.S. Quiz</span><span className="text-[#60a5fa]">Orbit</span>
+                        </h1>
+                        
+                        <p className="text-slate-300 text-lg md:text-xl font-medium max-w-3xl mx-auto mb-12 leading-relaxed opacity-90">
+                            S. S. Institute of Computer Education. The most secure and advanced online examination platform.
+                        </p>
+
+                        <div className="flex gap-8 mb-12 text-center">
+                            <div className="flex flex-col"><span className="text-3xl font-black text-white"><CountUp end={stats.students} /></span><span className="text-blue-400 text-xs uppercase font-bold tracking-wider">Students</span></div>
+                            <div className="w-px bg-white/10"></div>
+                            <div className="flex flex-col"><span className="text-3xl font-black text-white"><CountUp end={stats.exams} /></span><span className="text-blue-400 text-xs uppercase font-bold tracking-wider">Exams</span></div>
+                            <div className="w-px bg-white/10"></div>
+                            <div className="flex flex-col"><span className="text-3xl font-black text-white"><CountUp end={stats.taken} /></span><span className="text-blue-400 text-xs uppercase font-bold tracking-wider">Results</span></div>
+                        </div>
+
+                        {/* BUTTON CARDS SECTION (Floating Animation kept as requested) */}
+                        <div className="grid md:grid-cols-3 gap-6 w-full px-4 mb-12">
+                            <button onClick={()=>onNav('auth_exam')} className="glass-card p-8 rounded-3xl text-left float group relative overflow-hidden">
+                                <div className="absolute top-0 right-0 p-4 opacity-10 group-hover:opacity-20 transition transform group-hover:scale-110"><Icons.Lock size={100}/></div>
+                                <div className="mb-4 bg-blue-600 w-14 h-14 flex items-center justify-center rounded-2xl shadow-lg shadow-blue-900/50"><Icons.Lock size={28} className="text-white"/></div>
+                                <h3 className="text-3xl font-bold text-white mb-1">Student Exam</h3>
+                                <p className="text-blue-200/60 text-sm font-medium">Official Roll No Login</p>
+                            </button>
+                            
+                            <button onClick={()=>onNav('auth_practice')} className="glass-card p-8 rounded-3xl text-left float group relative overflow-hidden" style={{animationDelay: '1.5s'}}>
+                                <div className="absolute top-0 right-0 p-4 opacity-10 group-hover:opacity-20 transition transform group-hover:scale-110"><Icons.User size={100}/></div>
+                                <div className="mb-4 bg-cyan-500 w-14 h-14 flex items-center justify-center rounded-2xl shadow-lg shadow-cyan-900/50"><Icons.User size={28} className="text-white"/></div>
+                                <h3 className="text-3xl font-bold text-white mb-1">Practice Zone</h3>
+                                <p className="text-cyan-200/60 text-sm font-medium">Prepare with MCQs</p>
+                            </button>
+                            
+                            <button onClick={()=>onNav('auth_admin')} className="glass-card p-8 rounded-3xl text-left float group relative overflow-hidden" style={{animationDelay: '0.8s'}}>
+                                <div className="absolute top-0 right-0 p-4 opacity-10 group-hover:opacity-20 transition transform group-hover:scale-110"><Icons.Shield size={100}/></div>
+                                <div className="mb-4 bg-slate-700 w-14 h-14 flex items-center justify-center rounded-2xl shadow-lg shadow-slate-900/50"><Icons.Shield size={28} className="text-white"/></div>
+                                <h3 className="text-3xl font-bold text-white mb-1">Admin Panel</h3>
+                                <p className="text-slate-400 text-sm font-medium">Restricted Access</p>
+                            </button>
+                        </div>
+
+                        {/* NEW LEADERBOARD SECTION */}
+                        <div className="w-full max-w-4xl glass-panel rounded-3xl p-8 mb-12 fade-in" style={{animationDelay: '0.5s'}}>
+                            <div className="flex items-center gap-3 mb-6 justify-center">
+                                <Icons.Trophy className="text-yellow-400" size={32}/>
+                                <h2 className="text-2xl font-black text-white uppercase tracking-wider">Top Achievers Leaderboard</h2>
+                            </div>
+                            
+                            <div className="overflow-hidden rounded-xl bg-slate-900/50 border border-white/10">
+                                <table className="w-full text-left">
+                                    <thead className="bg-white/5 text-slate-400 text-xs uppercase font-bold">
+                                        <tr>
+                                            <th className="p-4 text-center">Rank</th>
+                                            <th className="p-4">Student Name</th>
+                                            <th className="p-4 hidden md:table-cell">Exam</th>
+                                            <th className="p-4 text-right">Score</th>
+                                        </tr>
+                                    </thead>
+                                    <tbody className="divide-y divide-white/5">
+                                        {topScorers.length === 0 && <tr><td colSpan="4" className="p-6 text-center text-slate-500">No results available yet.</td></tr>}
+                                        {topScorers.map((r, i) => {
+                                            const rankClass = i === 0 ? 'rank-1 text-xl' : (i === 1 ? 'rank-2 text-lg' : (i === 2 ? 'rank-3 text-lg' : 'text-slate-300'));
+                                            return (
+                                                <tr key={i} className="hover:bg-white/5 transition">
+                                                    <td className={`p-4 font-black text-center ${rankClass}`}>#{i+1}</td>
+                                                    <td className="p-4 font-bold text-white">{r.studentName}</td>
+                                                    <td className="p-4 text-sm text-slate-400 hidden md:table-cell">{r.quizTitle}</td>
+                                                    <td className="p-4 text-right font-mono font-bold text-blue-400">{r.score} / {r.total}</td>
+                                                </tr>
+                                            )
+                                        })}
+                                    </tbody>
+                                </table>
+                            </div>
+                        </div>
+
+                    </div>
+                </div>
+            );
+        }
+
+        function AuthPage({ mode, onAdminLogin, onRegister, onExamLogin, onLogin, users, onBack, notify }) {
+            const [isReg, setIsReg] = useState(false);
+            const [form, setForm] = useState({ name:'', username:'', password:'' });
+            const config = { auth_admin: { t:"Admin / Center", c:"bg-slate-700" }, auth_exam: { t:"Student Exam", c:"bg-blue-600" }, auth_practice: { t:"Practice", c:"bg-cyan-600" } };
+            const cur = config[mode];
+
+            const handleSubmit = (e) => {
+                e.preventDefault();
+                if(mode==='auth_admin') onAdminLogin(form);
+                else if(mode==='auth_exam') onExamLogin(form.username, form.password);
+                else {
+                    if(isReg) { if(!form.name) return notify("Name required","error"); onRegister(form); }
+                    else { const u = users.find(x=>x.username===form.username && x.password===form.password && x.role==='student'); if(u) onLogin(u); else notify("Invalid Practice Account","error"); }
+                }
+            };
+            return (
+                <div className="flex items-center justify-center min-h-screen">
+                    <button onClick={onBack} className="absolute top-8 left-8 home-btn text-white flex gap-2"><Icons.ArrowLeft size={18}/> Back</button>
+                    <div className="glass-panel p-8 rounded-3xl w-full max-w-md">
+                        <div className={`w-16 h-16 ${cur.c} rounded-xl mx-auto mb-4 flex items-center justify-center text-white shadow-lg`}>{mode==='auth_admin'?<Icons.Shield/>:<Icons.Lock/>}</div>
+                        <h2 className="text-3xl font-bold text-white text-center mb-6">{cur.t} Login</h2>
+                        <form onSubmit={handleSubmit} className="space-y-4">
+                            {isReg && <input className="w-full p-4 rounded-xl bg-black/40 border border-white/10 text-white outline-none" placeholder="Name" value={form.name} onChange={e=>setForm({...form,name:e.target.value})} />}
+                            <input className="w-full p-4 rounded-xl bg-black/40 border border-white/10 text-white outline-none" placeholder="Username / Roll No" value={form.username} onChange={e=>setForm({...form,username:e.target.value})} />
+                            <input type="password" className="w-full p-4 rounded-xl bg-black/40 border border-white/10 text-white outline-none" placeholder="Password" value={form.password} onChange={e=>setForm({...form,password:e.target.value})} />
+                            <button className={`w-full py-4 rounded-xl text-white font-bold shadow-lg ${cur.c} brightness-110 hover:brightness-125`}>{isReg?'Sign Up':'Login'}</button>
+                        </form>
+                        {mode==='auth_practice' && <button onClick={()=>setIsReg(!isReg)} className="mt-4 w-full text-center text-blue-400 text-sm">{isReg?'Login Existing':'Create Account'}</button>}
+                    </div>
+                </div>
+            )
+        }
+
+        function Navbar({ user, onLogout, onHome }) {
+            const displayRole = user.role === 'super_admin' ? 'Super Admin' : (user.role === 'center_admin' ? 'Center Admin' : user.course);
+            return (
+                <nav className="fixed top-0 w-full glass-panel z-50 px-6 py-4 border-b border-white/5 flex justify-between items-center">
+                    <div className="flex items-center gap-3 cursor-pointer" onClick={onHome}><div className="w-10 h-10 bg-blue-600 rounded-lg flex items-center justify-center text-white font-bold">SS</div><span className="font-bold text-lg text-white">QUIZ ORBIT</span></div>
+                    <div className="flex items-center gap-4">
+                        <span className="hidden md:block text-sm text-right">
+                            <div className="font-bold text-white">{user.centerName || user.name}</div>
+                            <div className="text-xs text-blue-400 uppercase">{displayRole}</div>
+                        </span>
+                        <button onClick={onLogout} className="bg-red-500/20 text-red-400 p-2.5 rounded-xl hover:bg-red-500 hover:text-white transition"><Icons.ArrowLeft className="rotate-180"/></button>
+                    </div>
+                </nav>
+            )
+        }
+
+        // --- ADMIN DASHBOARD (Legacy Fix applied) ---
+        function AdminDashboard({ user, quizzes, users, results, setQuizzes, setUsers, notify, onAddUser, onAddCenter, onDeleteUser, onDeleteResult, onSaveQuiz, onUpdateQuiz, onDeleteQuiz }) {
+            const [tab, setTab] = useState('create_exam');
+            const [editingQuiz, setEditingQuiz] = useState(null);
+
+            const isSuper = user.role === 'super_admin';
+            let myQuizzes, myUsers, myResults;
+
+            // FIX: Allow Super Admin to see legacy data (where centerId is missing or 'global')
+            if (isSuper) {
+                myQuizzes = quizzes.filter(q => q.centerId === 'global' || !q.centerId);
+                myUsers = users.filter(u => u.centerId === 'global' || !u.centerId);
+                myResults = results.filter(r => r.centerId === 'global' || !r.centerId);
+            } else {
+                myQuizzes = quizzes.filter(q => q.centerId === user.id);
+                myUsers = users.filter(u => u.centerId === user.id);
+                myResults = results.filter(r => r.centerId === user.id);
+            }
+
+            const addQuiz = (q) => { onSaveQuiz(q); };
+            const updateQuiz = (q) => { onUpdateQuiz(q); setEditingQuiz(null); setTab(q.type === 'digital' ? 'mcq_manager' : 'papers'); };
+            const delQuiz = (id) => { if(confirm("Are you sure?")) onDeleteQuiz(id); };
+
+            const omrQuizzes = myQuizzes.filter(q => q.type === 'pdf');
+            const mcqQuizzes = myQuizzes.filter(q => q.type === 'digital');
+
+            return (
+                <div className="container mx-auto max-w-7xl h-full flex flex-col">
+                    <div className="flex gap-2 mb-6 overflow-x-auto pb-2 border-b border-white/5">
+                        <NavBtn id="create_exam" label="New Exam" icon={<Icons.Edit size={16}/>} active={tab} set={setTab}/>
+                        <div className="w-px bg-white/10 mx-2"></div>
+                        <NavBtn id="papers" label="OMR Papers" icon={<Icons.Book size={16}/>} active={tab} set={setTab}/>
+                        <NavBtn id="mcq_manager" label="Online Tests (MCQ)" icon={<Icons.Cpu size={16}/>} active={tab} set={setTab} color="text-green-400"/>
+                        <div className="w-px bg-white/10 mx-2"></div>
+                        <NavBtn id="students" label="Student List" icon={<Icons.User size={16}/>} active={tab} set={setTab}/>
+                        <NavBtn id="exam_completed" label="Exam Results" icon={<Icons.Shield size={16}/>} active={tab} set={setTab}/>
+                        {isSuper && (
+                            <>
+                                <div className="w-px bg-white/10 mx-2"></div>
+                                <NavBtn id="centers" label="Manage Centers" icon={<Icons.Building size={16}/>} active={tab} set={setTab} color="text-yellow-400"/>
+                            </>
+                        )}
+                    </div>
+
+                    <div className="glass-panel p-1 rounded-2xl flex-grow overflow-hidden flex flex-col">
+                        <div className="h-full overflow-y-auto p-6 bg-[#0f172a]/60 rounded-xl">
+                            {tab === 'create_exam' && <CreateExam onSave={editingQuiz ? updateQuiz : addQuiz} initialData={editingQuiz} notify={notify} />}
+                            
+                            {tab === 'papers' && (
+                                <div>
+                                    <h3 className="text-xl font-bold text-white mb-6 border-l-4 border-blue-500 pl-3">OMR / PDF Papers</h3>
+                                    <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+                                        {omrQuizzes.map(q=>(
+                                            <QuizCard key={q.id} q={q} type="OMR" color="blue" onEdit={()=>{setEditingQuiz(q); setTab('create_exam');}} onDel={()=>delQuiz(q.id)} />
+                                        ))}
+                                    </div>
+                                </div>
+                            )}
+
+                            {tab === 'mcq_manager' && (
+                                <div className="border-2 border-dashed border-green-500/20 p-6 rounded-2xl bg-green-500/5">
+                                    <h3 className="text-xl font-bold text-green-400 mb-6 flex items-center gap-2"><Icons.Cpu/> Digital MCQ Tests</h3>
+                                    <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+                                        {mcqQuizzes.length === 0 && <div className="text-slate-500 italic">No MCQ Exams created. Create one!</div>}
+                                        {mcqQuizzes.map(q=>(
+                                            <QuizCard key={q.id} q={q} type="ONLINE MCQ" color="green" onEdit={()=>{setEditingQuiz(q); setTab('create_exam');}} onDel={()=>delQuiz(q.id)} />
+                                        ))}
+                                    </div>
+                                </div>
+                            )}
+
+                            {tab === 'students' && <StudentManager users={myUsers} results={myResults} onAdd={onAddUser} onDel={(id)=>onDeleteUser(id)} />}
+                            {tab === 'exam_completed' && <ResultManager results={myResults} onDelete={onDeleteResult} />}
+                            
+                            {isSuper && tab === 'centers' && (
+                                <CenterManager users={users} onAdd={onAddCenter} onDel={(id)=>onDeleteUser(id)} />
+                            )}
+                        </div>
+                    </div>
+                </div>
+            );
+        }
+
+        function NavBtn({id, label, icon, active, set, color=''}) {
+            return (
+                <button onClick={()=>set(id)} className={`px-5 py-3 rounded-xl flex items-center gap-2 font-bold text-sm transition whitespace-nowrap ${active===id ? 'bg-blue-600 text-white shadow-lg' : 'text-slate-400 hover:bg-white/5 '+color}`}>
+                    {icon} {label}
+                </button>
+            )
+        }
+
+        function QuizCard({q, type, color, onEdit, onDel}) {
+            const cls = color==='green' ? 'border-green-500/30 hover:border-green-400 bg-green-900/10' : 'border-blue-500/30 hover:border-blue-400 bg-blue-900/10';
+            const badge = color==='green' ? 'bg-green-500/20 text-green-300' : 'bg-blue-500/20 text-blue-300';
+            const hasTimer = q.duration && q.duration > 0;
+
+            return (
+                <div className={`p-5 rounded-xl border flex justify-between items-start transition shadow-lg ${cls}`}>
+                    <div>
+                        <div className="font-bold text-white text-lg mb-1">{q.title}</div>
+                        <div className={`text-[10px] font-bold tracking-widest px-2 py-1 rounded inline-block uppercase ${badge}`}>{q.course} • {type}</div>
+                        <div className="text-xs text-slate-400 mt-2">{q.questions.length} Questions</div>
+                        {hasTimer && <div className="text-xs text-yellow-500 mt-1 flex items-center gap-1"><Icons.Clock size={10}/> {q.duration} mins</div>}
+                    </div>
+                    <div className="flex gap-2">
+                        <button onClick={onEdit} className="p-2 bg-slate-800 text-blue-400 rounded hover:text-white"><Icons.Edit size={14}/></button>
+                        <button onClick={onDel} className="p-2 bg-slate-800 text-red-400 rounded hover:text-white"><Icons.Trash size={14}/></button>
+                    </div>
+                </div>
+            )
+        }
+
+        function CreateExam({ onSave, initialData, notify }) {
+            const [type, setType] = useState('pdf');
+            const [d, setD] = useState({title:'', course:COURSES[0], duration: 0, pdfData: null, keyString: '', questions:[]});
+            const [digQ, setDigQ] = useState({text:'', opts:['','','',''], ans:0});
+            const [file, setFile] = useState(null);
+            
+            const [showBulk, setShowBulk] = useState(false);
+            const [bulkText, setBulkText] = useState('');
+
+            useEffect(() => { if(initialData) { setD(initialData); setType(initialData.type); } }, [initialData]);
+
+            const processKey = (str) => { return str.toUpperCase().match(/[A-D]/g) || []; };
+
+            const saveExam = async () => {
+                if(!d.title) return notify("Title missing", "error");
+                let fileDataUrl = d.pdfData;
+                let fileType = d.fileType || 'pdf';
+                if(type === 'pdf' && file) {
+                    fileDataUrl = await DB.convertFileToBase64(file);
+                    fileType = file.type.startsWith('image/') ? 'image' : 'pdf';
+                }
+                
+                const finalDuration = d.duration ? parseInt(d.duration) : 0;
+                const examData = { ...d, duration: finalDuration };
+
+                if(type === 'pdf') {
+                    if(!fileDataUrl && !initialData) return notify("Upload File", "error");
+                    const parsedKeys = processKey(d.keyString);
+                    if(parsedKeys.length===0) return notify("Invalid Key", "error");
+                    onSave({ ...examData, type: 'pdf', pdfData: fileDataUrl, fileType, parsedKeys, questions: Array(parsedKeys.length).fill({text:'OMR Question'}) });
+                } else {
+                    if(d.questions.length === 0) return notify("Add Questions First!", "error");
+                    onSave({...examData, type:'digital'});
+                }
+            };
+
+            const parseTextQuestions = (txt) => {
+                const lines = txt.split('\n').map(l => l.trim()).filter(l => l);
+                const newQs = [];
+                let curr = { text: '', opts: [], ans: null };
+                
+                const isOpt = (l) => /^(?:[a-d]|[1-4])[\.\)\s-]|\([a-d]\)/i.test(l);
+                const isAns = (l) => /^(?:ans|answer|correct|uttar|ans\.)[\s:-]*([a-d]|[1-4])/i.exec(l);
+
+                lines.forEach((line) => {
+                    const ansMatch = isAns(line);
+                    if (ansMatch) {
+                        const map = {'a':0, 'b':1, 'c':2, 'd':3, '1':0, '2':1, '3':2, '4':3};
+                        curr.ans = map[ansMatch[1].toLowerCase()];
+                        if (curr.text && curr.opts.length >= 2) {
+                            while(curr.opts.length < 4) curr.opts.push("-");
+                            newQs.push({...curr});
+                        }
+                        curr = { text: '', opts: [], ans: null };
+                    } 
+                    else if (isOpt(line)) {
+                        const cleanOpt = line.replace(/^(?:[a-d]|[1-4])[\.\)\s-]+\s*|^\([a-d]\)\s*/i, '').trim();
+                        curr.opts.push(cleanOpt);
+                    } 
+                    else {
+                        if(curr.opts.length === 0) curr.text = curr.text ? curr.text + " " + line : line;
+                    }
+                });
+                return newQs;
+            };
+
+            const handleBulkUpload = () => {
+                const textQs = parseTextQuestions(bulkText);
+                if(textQs.length > 0) {
+                    setD({...d, questions: [...d.questions, ...textQs]});
+                    setBulkText(''); setShowBulk(false);
+                    notify(`Success! ${textQs.length} Questions Added.`);
+                } else {
+                    notify("Format not recognized. Use: Question -> A. Opt -> Ans: A", "error");
+                }
+            };
+            
+            const fillExample = () => {
+                setBulkText(`CPU stands for?
+A. Central Processing Unit
+B. Computer Power Unit
+C. Central Power Unit
+D. None
+Answer: A`);
+            };
+
+            return (
+                <div className="max-w-4xl mx-auto text-slate-200">
+                    <h2 className="text-2xl font-bold text-white mb-6 border-l-4 border-blue-500 pl-4">{initialData ? 'Edit Exam' : 'New Exam'}</h2>
+                    <div className="grid grid-cols-2 gap-4 mb-8 bg-slate-900/50 p-1 rounded-xl border border-white/5">
+                        <button onClick={()=>setType('pdf')} className={`py-3 rounded-lg font-bold text-sm ${type==='pdf'?'bg-blue-600 text-white':'text-slate-400'}`}>Upload Paper (OMR)</button>
+                        <button onClick={()=>setType('digital')} className={`py-3 rounded-lg font-bold text-sm ${type==='digital'?'bg-green-600 text-white':'text-slate-400'}`}>Digital MCQs</button>
+                    </div>
+                    <div className="space-y-6">
+                         <div className="flex gap-4">
+                            <input className="w-2/3 p-4 bg-slate-800 border border-white/10 rounded-xl outline-none" placeholder="Exam Title" value={d.title} onChange={e=>setD({...d,title:e.target.value})} />
+                            <input className="w-1/3 p-4 bg-slate-800 border border-white/10 rounded-xl outline-none" type="number" placeholder="Duration (Min) - Leave 0 for No Limit" value={d.duration || ''} onChange={e=>setD({...d,duration:e.target.value})} />
+                         </div>
+                         <select className="w-full p-4 bg-slate-800 border border-white/10 rounded-xl outline-none" value={d.course} onChange={e=>setD({...d,course:e.target.value})}>{COURSES.map(c=><option key={c} value={c}>{c}</option>)}</select>
+                        {type === 'pdf' ? (
+                            <>
+                                <input type="file" onChange={e=>setFile(e.target.files[0])} className="w-full bg-slate-800 p-4 rounded-xl" />
+                                <textarea className="w-full p-4 bg-slate-800 rounded-xl h-32 font-mono" placeholder="Answer Key (1-A 2-B...)" value={d.keyString} onChange={e=>setD({...d,keyString:e.target.value})}></textarea>
+                            </>
+                        ) : (
+                            <div className="bg-slate-800/50 p-6 rounded-2xl border border-white/10">
+                                <div className="flex justify-between border-b border-white/10 pb-4 mb-4">
+                                    <div className="font-bold text-green-400">Questions: {d.questions.length}</div>
+                                    <button onClick={()=>setShowBulk(!showBulk)} className="text-xs bg-slate-700 hover:bg-slate-600 px-3 py-1 rounded text-white flex gap-2 items-center"><Icons.Upload size={12}/> Bulk Import (Text)</button>
+                                </div>
+
+                                {showBulk && (
+                                    <div className="mb-6 p-4 bg-black/40 rounded-xl border border-dashed border-slate-500">
+                                        <div className="flex justify-between mb-2">
+                                            <div className="text-xs text-slate-400">Paste questions below (Question - Options - Ans)</div>
+                                            <button onClick={fillExample} className="text-[10px] bg-blue-500 px-2 py-1 rounded text-white">Example</button>
+                                        </div>
+                                        <textarea value={bulkText} onChange={e=>setBulkText(e.target.value)} className="w-full h-48 bg-slate-900 font-mono text-sm p-3 rounded mb-2 border border-white/10" placeholder="Question 1...&#10;A. Option&#10;B. Option&#10;Answer: A"></textarea>
+                                        <button onClick={handleBulkUpload} className="w-full bg-blue-600 py-2 rounded text-sm font-bold">Import Questions</button>
+                                    </div>
+                                )}
+                                
+                                {d.questions.length > 0 && (
+                                    <div className="mb-4 max-h-40 overflow-y-auto bg-black/20 p-2 rounded">
+                                        {d.questions.map((q,i)=>(<div key={i} className="text-xs text-slate-400 border-b border-white/5 py-1">{i+1}. {q.text}</div>))}
+                                    </div>
+                                )}
+
+                                <input className="w-full p-3 bg-black/30 rounded-xl mb-4 text-white" placeholder="Question Text" value={digQ.text} onChange={e=>setDigQ({...digQ,text:e.target.value})} />
+                                <div className="grid grid-cols-2 gap-3 mb-4">
+                                    {digQ.opts.map((o,i)=>( <div key={i} className={`flex items-center gap-2 p-2 rounded border ${digQ.ans===i?'border-green-500':'border-transparent bg-black/20'}`}><button onClick={()=>setDigQ({...digQ,ans:i})} className="text-xs bg-slate-700 px-2 py-1 rounded">{['A','B','C','D'][i]}</button><input className="bg-transparent text-sm w-full outline-none" value={o} onChange={e=>{const n=[...digQ.opts];n[i]=e.target.value;setDigQ({...digQ,opts:n})}}/></div> ))}
+                                </div>
+                                <button onClick={()=>{setD({...d, questions:[...d.questions, digQ]}); setDigQ({text:'',opts:['','','',''],ans:0});}} className="w-full py-3 bg-blue-600 rounded-xl font-bold">Add Question</button>
+                            </div>
+                        )}
+                        <button onClick={saveExam} className="w-full py-4 bg-green-600 rounded-xl font-bold text-white shadow-lg">{initialData ? 'Update' : 'Save Exam'}</button>
+                    </div>
+                </div>
+            );
+        }
+
+        // --- NEW: CENTER MANAGER ---
+        function CenterManager({ users, onAdd, onDel }) {
+            const [form, setForm] = useState({centerName:'', username:'', password:''});
+            const centers = users.filter(u => u.role === 'center_admin');
+
+            return (
+                <div>
+                     <div className="bg-slate-800/50 p-6 rounded-2xl mb-8 border border-white/5 flex gap-3 flex-wrap border-l-4 border-yellow-500">
+                        <h3 className="w-full text-sm font-bold uppercase text-yellow-400 mb-2">Create New Coaching Center Admin</h3>
+                        <input placeholder="Center / Coaching Name" className="p-3 bg-black/20 rounded-xl border border-white/10 text-white flex-[2]" value={form.centerName} onChange={e=>setForm({...form,centerName:e.target.value})} />
+                        <input placeholder="Admin Username" className="p-3 bg-black/20 rounded-xl border border-white/10 text-white flex-1" value={form.username} onChange={e=>setForm({...form,username:e.target.value})} />
+                        <input placeholder="Password" className="p-3 bg-black/20 rounded-xl border border-white/10 text-white flex-1" value={form.password} onChange={e=>setForm({...form,password:e.target.value})} />
+                        <button onClick={()=>{onAdd(form); setForm({centerName:'',username:'',password:''})}} className="bg-yellow-600 text-white px-6 rounded-xl font-bold">Create Center</button>
+                    </div>
+
+                    <h3 className="font-bold text-white text-xl mb-4">Registered Centers</h3>
+                    <div className="overflow-hidden rounded-xl border border-white/10 bg-slate-800/20">
+                        <table className="w-full text-left text-sm text-slate-300">
+                            <thead className="text-xs uppercase bg-black/20 text-slate-400"><tr><th className="p-3">Center Name</th><th className="p-3">Username</th><th className="p-3">Password</th><th className="p-3">Action</th></tr></thead>
+                            <tbody className="divide-y divide-white/5">
+                                {centers.map(u=>(
+                                    <tr key={u.id} className="bg-slate-800/30">
+                                        <td className="p-3 font-bold text-white">{u.centerName}</td>
+                                        <td className="p-3 font-mono">{u.username}</td>
+                                        <td className="p-3 font-mono text-xs text-slate-400">{u.password}</td>
+                                        <td className="p-3"><button onClick={()=>onDel(u.id)} className="text-red-400 hover:text-red-300"><Icons.Trash size={14}/></button></td>
+                                    </tr>
+                                ))}
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            )
+        }
+
+        // --- STUDENT MANAGER ---
+        function StudentManager({ users, results, onAdd, onDel }) {
+            const [form, setForm] = useState({name:'', username:'', password:'', course:COURSES[0]});
+            const [filterCourse, setFilterCourse] = useState('ALL'); 
+            const [history, setHistory] = useState(null);
+            
+            const examUsers = users.filter(u => {
+                if (filterCourse === 'PRACTICE') return u.role === 'student';
+                if (filterCourse === 'ALL') return u.role === 'exam_taker'; 
+                return u.role === 'exam_taker' && u.course === filterCourse;
+            });
+
+            return (
+                <div>
+                    {history && <div className="fixed inset-0 z-50 bg-black/90 p-10 overflow-y-auto"><button onClick={()=>setHistory(null)} className="fixed top-5 right-5 text-white font-bold bg-red-600 p-2 rounded">CLOSE</button><ResultManager results={results.filter(r=>r.studentId===history.username)} /></div>}
+                    
+                    <div className="bg-slate-800/50 p-6 rounded-2xl mb-8 border border-white/5 flex gap-3 flex-wrap">
+                        <h3 className="w-full text-sm font-bold uppercase text-blue-400 mb-2">Register Exam Candidate</h3>
+                        <input placeholder="Name" className="p-3 bg-black/20 rounded-xl border border-white/10 text-white flex-[2]" value={form.name} onChange={e=>setForm({...form,name:e.target.value})} />
+                        <input placeholder="Roll No" className="p-3 bg-black/20 rounded-xl border border-white/10 text-white flex-1" value={form.username} onChange={e=>setForm({...form,username:e.target.value})} />
+                        <input placeholder="Password" className="p-3 bg-black/20 rounded-xl border border-white/10 text-white flex-1" value={form.password} onChange={e=>setForm({...form,password:e.target.value})} />
+                        <select className="p-3 bg-black/20 rounded-xl border border-white/10 text-white bg-[#1e293b]" value={form.course} onChange={e=>setForm({...form,course:e.target.value})}>{COURSES.map(c=><option key={c} value={c}>{c}</option>)}</select>
+                        <button onClick={()=>{onAdd(form); setForm({name:'',username:'',password:'',course:COURSES[0]})}} className="bg-green-600 text-white px-6 rounded-xl font-bold">Add</button>
+                    </div>
+
+                    <div className="flex justify-between items-center mb-4">
+                        <h3 className="font-bold text-white text-xl">Student List</h3>
+                        <div className="flex items-center gap-3 bg-slate-800 p-2 rounded-lg border border-blue-500/30">
+                            <span className="text-xs text-blue-300 font-bold uppercase">Filter:</span>
+                            <select value={filterCourse} onChange={e=>setFilterCourse(e.target.value)} className="bg-slate-900 text-white text-sm p-1 rounded border border-white/10 outline-none">
+                                <option value="ALL">All Exam Students</option>
+                                <option value="PRACTICE" className="text-yellow-400 font-bold">★ Practice Zone Users</option>
+                                {COURSES.map(c=><option key={c} value={c}>{c}</option>)}
+                            </select>
+                        </div>
+                    </div>
+
+                    <div className="overflow-hidden rounded-xl border border-white/10 bg-slate-800/20">
+                        <table className="w-full text-left text-sm text-slate-300">
+                            <thead className="text-xs uppercase bg-black/20 text-slate-400"><tr><th className="p-3">Name</th><th className="p-3">Type/Course</th><th className="p-3">ID/Roll</th><th className="p-3">Password</th><th className="p-3">Action</th></tr></thead>
+                            <tbody className="divide-y divide-white/5">
+                                {examUsers.length === 0 && <tr><td colSpan="5" className="p-4 text-center opacity-50">No students found.</td></tr>}
+                                {examUsers.map(u=>(
+                                    <tr key={u.id} className="bg-slate-800/30">
+                                        <td className="p-3 font-bold text-white">{u.name}</td>
+                                        <td className="p-3">
+                                            {u.role==='student' 
+                                                ? <span className="bg-yellow-500/20 text-yellow-400 text-[10px] px-2 py-1 rounded font-bold">PRACTICE</span>
+                                                : <span className="bg-blue-600/20 text-blue-400 text-[10px] px-2 py-1 rounded font-bold">{u.course}</span>}
+                                        </td>
+                                        <td className="p-3 font-mono">{u.username}</td>
+                                        <td className="p-3 font-mono text-xs text-slate-400">{u.password}</td>
+                                        <td className="p-3 flex gap-2">
+                                            <button onClick={()=>setHistory(u)} className="text-blue-400 font-bold text-xs hover:text-white">Results</button>
+                                            <button onClick={()=>onDel(u.id)} className="text-red-400 hover:text-red-300"><Icons.Trash size={14}/></button>
+                                        </td>
+                                    </tr>
+                                ))}
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            );
+        }
+
+        // --- UPDATED RESULT MANAGER ---
+        function ResultManager({ results, onDelete }) {
+            const [report, setReport] = useState(null);
+
+            return (
+                <div>
+                     {report && (
+                        <div id="report-modal" className="fixed inset-0 z-[200] bg-black/90 flex items-center justify-center p-4 overflow-y-auto">
+                            <div id="report-card" className="relative w-full max-w-[800px] bg-white shadow-2xl rounded-sm overflow-hidden my-auto">
+                                <div className="absolute top-2 right-2 z-50 flex gap-2 no-print">
+                                     <button onClick={()=>window.print()} className="bg-blue-600 text-white px-4 py-2 rounded-full font-bold shadow hover:bg-blue-700">PRINT</button>
+                                     <button onClick={()=>setReport(null)} className="bg-red-600 text-white px-4 py-2 rounded-full font-bold shadow hover:bg-red-700">CLOSE</button>
+                                </div>
+                                <div className="relative w-full h-full">
+                                    <img src="https://i.postimg.cc/pTYj8MT4/poto.png" alt="Certificate" className="w-full h-auto block"/>
+                                    <div className="absolute left-[35%] top-[52%] w-[60%] text-left">
+                                        <span className="font-bold text-slate-900 text-[2.5vw] md:text-xl font-mono block translate-y-[-50%]">{report.quizTitle}</span>
+                                    </div>
+                                    <div className="absolute left-[35%] top-[58%] w-[60%] text-left">
+                                        <span className="font-bold text-slate-900 text-[2.5vw] md:text-xl font-mono block translate-y-[-50%]">{new Date(report.date).toLocaleDateString()}</span>
+                                    </div>
+                                    <div className="absolute left-[35%] top-[64.2%] w-[60%] text-left">
+                                        <span className="font-bold text-slate-900 text-[3vw] md:text-2xl font-serif uppercase tracking-wider block translate-y-[-50%]">{report.studentName}</span>
+                                    </div>
+                                    <div className="absolute top-[72%] left-0 w-full text-center">
+                                        <div className="inline-flex flex-col items-center justify-center p-2">
+                                            <div className="text-[2vw] md:text-lg font-bold text-slate-700 uppercase tracking-widest border-b-2 border-slate-300 mb-1">Score Card</div>
+                                            <div className="flex gap-6 text-[2.5vw] md:text-xl font-bold text-blue-900">
+                                                <div>Correct: {report.score} / {report.total}</div>
+                                                <div>Percentage: {Math.round((report.score/report.total)*100)}%</div>
+                                            </div>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    )}
+                    <table className="w-full text-left text-sm text-slate-300">
+                        <thead className="bg-slate-900/80 text-xs uppercase"><tr><th className="p-4">Exam</th><th className="p-4">Student</th><th className="p-4">Score</th><th className="p-4">Action</th></tr></thead>
+                        <tbody className="divide-y divide-white/5">
+                            {results.map(r=>(
+                                <tr key={r.id} className="bg-slate-800/30">
+                                    <td className="p-4 font-bold">{r.quizTitle}</td>
+                                    <td className="p-4">{r.studentName}</td>
+                                    <td className="p-4 font-bold text-blue-400">{r.score} / {r.total}</td>
+                                    <td className="p-4 flex gap-3"><button onClick={()=>setReport(r)} className="text-blue-400">Card</button>{onDelete && <button onClick={()=>onDelete(r.id)} className="text-red-400"><Icons.Trash size={14}/></button>}</td>
+                                </tr>
+                            ))}
+                        </tbody>
+                    </table>
+                </div>
+            )
+        }
+
+        // --- STUDENT DASHBOARD (Modified to allow Legacy Exams) ---
+        function StudentDashboard({ user, quizzes, results, onSave }) {
+            const [tab, setTab] = useState('take');
+            const [activeQuiz, setActiveQuiz] = useState(null);
+            
+            let relevantQuizzes = [];
+            
+            if (user.role === 'student') {
+                relevantQuizzes = quizzes.filter(q => q.type === 'digital');
+            } else {
+                // FIXED LOGIC: Allow Center Exams OR Legacy Exams (No centerId)
+                relevantQuizzes = quizzes.filter(q => 
+                    (q.centerId === user.centerId || !q.centerId || q.centerId === 'global') && 
+                    q.type === 'pdf' && 
+                    q.course === user.course
+                );
+            }
+
+            const myResults = results.filter(r => r.studentId === user.username);
+            const completedQuizIds = new Set(myResults.map(r => r.quizId));
+            const availableQuizzes = relevantQuizzes.filter(q => !completedQuizIds.has(q.id));
+            
+            const startQuiz = (q) => {
+                const path = `progress/${user.username}/${q.id}`;
+                db.ref(path).once('value', snapshot => {
+                    let prog = snapshot.val();
+                    if (!prog) {
+                        prog = { startTime: Date.now() };
+                        db.ref(path).set(prog);
+                    }
+                    setActiveQuiz({ ...q, progress: prog });
+                });
+            };
+
+            if(activeQuiz) {
+                if(activeQuiz.type === 'pdf') return <PdfOmrRunner quiz={activeQuiz} student={user} onFinish={(d)=>{onSave(d); db.ref(`progress/${user.username}/${activeQuiz.id}`).remove(); setActiveQuiz(null);}} onExit={()=>setActiveQuiz(null)} />
+                return <DigitalRunner quiz={activeQuiz} student={user} onFinish={(d)=>{onSave(d); db.ref(`progress/${user.username}/${activeQuiz.id}`).remove(); setActiveQuiz(null);}} onExit={()=>setActiveQuiz(null)} />
+            }
+
+            return (
+                <div className="container mx-auto max-w-6xl">
+                    <div className="flex justify-between items-center mb-8">
+                        <div>
+                            <h2 className="text-3xl font-bold text-white">Hello, {user.name}</h2>
+                            <p className="text-blue-300 text-sm">{user.centerName || 'Practice Mode'} • {user.course || 'Global'}</p>
+                        </div>
+                        <div className="flex gap-2 bg-slate-800/50 p-1 rounded-xl">
+                            <button onClick={()=>setTab('take')} className={`px-6 py-2 rounded-lg font-bold text-sm ${tab==='take'?'bg-blue-600':'hover:bg-white/10'}`}>Exams ({availableQuizzes.length})</button>
+                            <button onClick={()=>setTab('history')} className={`px-6 py-2 rounded-lg font-bold text-sm ${tab==='history'?'bg-blue-600':'hover:bg-white/10'}`}>History</button>
+                        </div>
+                    </div>
+
+                    {tab === 'take' && (
+                        <div className="grid md:grid-cols-3 gap-6">
+                            {availableQuizzes.length === 0 && <div className="col-span-3 text-center text-slate-500 py-10 bg-slate-800/30 rounded-xl">No pending exams found. Check History!</div>}
+                            {availableQuizzes.map(q => {
+                                const hasTimer = q.duration && q.duration > 0;
+                                return (
+                                    <div key={q.id} className="glass-card p-6 rounded-2xl group border-l-4 border-l-blue-500">
+                                        <h3 className="font-bold text-xl text-white mb-1">{q.title}</h3>
+                                        <div className="flex justify-between items-center mt-2">
+                                            <p className="text-xs text-blue-400 font-mono uppercase">{q.type === 'digital' ? 'MCQ Practice' : 'Exam Paper'} • {q.course}</p>
+                                            {hasTimer && <div className="text-xs text-yellow-400 font-bold flex items-center gap-1"><Icons.Clock size={12}/> {q.duration} Min</div>}
+                                        </div>
+                                        <button onClick={()=>startQuiz(q)} className="w-full py-3 bg-white text-slate-900 font-bold rounded-xl mt-6 group-hover:bg-blue-50">Start Now</button>
+                                    </div>
+                                )
+                            })}
+                        </div>
+                    )}
+                    
+                    {tab === 'history' && (
+                        <div className="glass-panel rounded-2xl overflow-hidden">
+                            <h3 className="p-4 bg-slate-800 font-bold text-white border-b border-white/5">Completed Exams</h3>
+                            <ResultManager results={myResults} />
+                        </div>
+                    )}
+                </div>
+            );
+        }
+
+        function PdfOmrRunner({ quiz, student, onFinish, onExit }) {
+            const [answers, setAnswers] = useState(quiz.progress?.answers || {});
+            const totalQs = quiz.parsedKeys.length;
+            const hasTimer = quiz.duration && quiz.duration > 0;
+
+            const saveAndExit = () => {
+                db.ref(`progress/${student.username}/${quiz.id}`).set({ 
+                    answers, 
+                    startTime: quiz.progress.startTime 
+                });
+                onExit();
+            };
+
+            const calculateScore = () => {
+                let score = 0; 
+                Object.keys(answers).forEach(k => { if(answers[k] === quiz.parsedKeys[k]) score++; });
+                return score;
+            };
+
+            const submit = () => {
+                if(!confirm("Submit Exam? You cannot retake this.")) return;
+                finishExam();
+            };
+            
+            const finishExam = () => {
+                const score = calculateScore();
+                onFinish({ 
+                    quizId: quiz.id, 
+                    studentId: student.username, 
+                    studentName: student.name, 
+                    quizTitle: quiz.title, 
+                    course: student.course, 
+                    score, 
+                    total: totalQs, 
+                    date: new Date().toISOString() 
+                });
+            };
+
+            return (
+                <div className="fixed inset-0 z-[100] bg-[#0a192f] flex flex-col h-screen">
+                    <header className="h-16 bg-slate-900 px-6 flex justify-between items-center border-b border-white/10">
+                        <div className="text-white font-bold">{quiz.title}</div>
+                        <div className="flex gap-4 items-center">
+                            {hasTimer && <ExamTimer duration={quiz.duration} startTime={quiz.progress.startTime} onTimeUp={finishExam} />}
+                            <div className="w-px h-8 bg-white/20"></div>
+                            <button onClick={saveAndExit} className="bg-yellow-600 px-4 py-2 rounded text-white font-bold text-sm flex items-center gap-2"><Icons.Save size={14}/> Save & Exit</button>
+                            <button onClick={submit} className="bg-green-600 px-6 py-2 rounded text-white font-bold text-sm">Submit</button>
+                        </div>
+                    </header>
+                    <div className="flex-grow flex overflow-hidden">
+                        <div className="w-2/3 h-full bg-slate-800 flex justify-center p-4 overflow-auto">
+                            {quiz.fileType === 'image' || (quiz.pdfData && quiz.pdfData.startsWith('data:image')) 
+                                ? <img src={quiz.pdfData} className="max-w-full h-auto object-contain" />
+                                : <iframe src={quiz.pdfData} className="w-full h-full border-0 bg-white"></iframe>}
+                        </div>
+                        <div className="w-1/3 h-full bg-slate-900 border-l border-white/10 overflow-y-auto p-6">
+                            {Array.from({length: totalQs}).map((_, i) => ( <div key={i} className="flex justify-between py-2 border-b border-white/5"><span className="text-slate-400 font-bold">{i+1}</span><div className="flex gap-2">{['A','B','C','D'].map(o=><div key={o} onClick={()=>setAnswers({...answers, [i]:o})} className={`omr-bubble ${answers[i]===o?'selected':''}`}>{o}</div>)}</div></div> ))}
+                        </div>
+                    </div>
+                </div>
+            )
+        }
+
+        function DigitalRunner({ quiz, student, onFinish, onExit }) {
+            const [idx, setIdx] = useState(quiz.progress?.idx || 0); 
+            const [ans, setAns] = useState(quiz.progress?.ans || {}); 
+            const [isReview, setIsReview] = useState(false);
+            const [score, setScore] = useState(0);
+            const hasTimer = quiz.duration && quiz.duration > 0;
+            
+            const q = quiz.questions[idx];
+
+            const saveAndExit = () => {
+                db.ref(`progress/${student.username}/${quiz.id}`).set({ 
+                    idx, 
+                    ans, 
+                    startTime: quiz.progress.startTime 
+                });
+                onExit();
+            };
+
+            const calculateScore = () => {
+                let s = 0; 
+                quiz.questions.forEach((q, i) => { if(ans[i] === q.ans) s++; }); 
+                return s;
+            };
+
+            const submit = () => { 
+                setScore(calculateScore());
+                setIsReview(true);
+            };
+
+            const closeReview = () => {
+                onFinish({ 
+                    quizId: quiz.id, 
+                    studentId: student.username, 
+                    studentName: student.name, 
+                    quizTitle: quiz.title, 
+                    course: student.course || 'Practice', 
+                    score, 
+                    total: quiz.questions.length, 
+                    date: new Date().toISOString() 
+                });
+            };
+
+            const autoSubmit = () => {
+                const s = calculateScore();
+                onFinish({ 
+                    quizId: quiz.id, 
+                    studentId: student.username, 
+                    studentName: student.name, 
+                    quizTitle: quiz.title, 
+                    course: student.course || 'Practice', 
+                    score: s, 
+                    total: quiz.questions.length, 
+                    date: new Date().toISOString() 
+                });
+            };
+
+            if(isReview) {
+                return (
+                    <div className="fixed inset-0 z-[100] bg-slate-900 overflow-y-auto p-6">
+                         <div className="max-w-3xl mx-auto">
+                            <div className="bg-slate-800 p-8 rounded-3xl text-center mb-6 border border-white/10">
+                                <h2 className="text-2xl font-bold text-white mb-2">Exam Completed!</h2>
+                                <div className="text-5xl font-black text-blue-400 mb-6">{score} <span className="text-2xl text-slate-500">/ {quiz.questions.length}</span></div>
+                                <button onClick={closeReview} className="bg-blue-600 px-8 py-3 rounded-xl font-bold text-white shadow-lg hover:bg-blue-500">Finish & Save</button>
+                            </div>
+                            <div className="space-y-4">
+                                {quiz.questions.map((q, i) => {
+                                    const isCorrect = ans[i] === q.ans;
+                                    return (
+                                        <div key={i} className={`p-6 rounded-2xl border ${isCorrect ? 'border-green-500/50 bg-green-900/10' : 'border-red-500/50 bg-red-900/10'}`}>
+                                            <div className="flex justify-between mb-2">
+                                                <h3 className="font-bold text-white">Q{i+1}: {q.text}</h3>
+                                                {isCorrect ? <span className="text-green-400 font-bold flex items-center gap-1"><Icons.Check size={16}/> Correct</span> : <span className="text-red-400 font-bold flex items-center gap-1"><Icons.X size={16}/> Wrong</span>}
+                                            </div>
+                                            <div className="text-sm text-slate-400">
+                                                Your Answer: <span className={isCorrect?'text-green-300':'text-red-300 font-bold'}>{q.opts[ans[i]] || 'Skipped'}</span>
+                                            </div>
+                                            {!isCorrect && <div className="text-sm text-green-400 mt-1">Correct Answer: <b>{q.opts[q.ans]}</b></div>}
+                                        </div>
+                                    )
+                                })}
+                            </div>
+                         </div>
+                    </div>
+                )
+            }
+
+            const hasAnsweredCurrent = ans[idx] !== undefined;
+
+            return (
+                <div className="fixed inset-0 z-[100] bg-slate-900 flex flex-col items-center justify-center p-4">
+                    <div className="w-full max-w-2xl glass-panel p-8 rounded-3xl relative">
+                        {hasTimer && (
+                            <div className="absolute top-4 left-4">
+                                <ExamTimer duration={quiz.duration} startTime={quiz.progress.startTime} onTimeUp={autoSubmit} />
+                            </div>
+                        )}
+                        <button onClick={saveAndExit} className="absolute top-4 right-4 bg-yellow-500/20 text-yellow-400 px-3 py-1 rounded text-xs font-bold hover:bg-yellow-500 hover:text-black transition">Save & Exit</button>
+                        
+                        <div className="mt-12 mb-2 text-blue-400 font-bold text-xs uppercase tracking-widest text-center">Question {idx+1} of {quiz.questions.length}</div>
+                        <h2 className="text-xl font-bold text-white mb-8 text-center">{q.text}</h2>
+                        
+                        <div className="space-y-3 mb-8">
+                            {q.opts.map((o,i)=>(
+                                <button key={i} 
+                                    onClick={()=>setAns({...ans,[idx]:i})} 
+                                    className={`w-full text-left p-4 rounded-xl border transition-all ${ans[idx]===i?'border-blue-500 bg-blue-600 text-white shadow-lg scale-[1.02]':'border-white/10 text-slate-300 hover:bg-white/5'}`}>
+                                    <span className="font-bold opacity-50 mr-3">{['A','B','C','D'][i]}.</span>{o}
+                                </button>
+                            ))}
+                        </div>
+                        
+                        <div className="flex justify-between">
+                            <button disabled={idx===0} onClick={()=>setIdx(idx-1)} className="px-6 py-3 rounded-lg bg-slate-700 text-white disabled:opacity-50">Prev</button>
+                            
+                            <button 
+                                onClick={()=>{if(idx===quiz.questions.length-1) submit(); else setIdx(idx+1);}} 
+                                className={`px-8 py-3 rounded-lg font-bold transition-all ${hasAnsweredCurrent ? 'bg-blue-600 text-white shadow-lg transform scale-105' : 'bg-slate-700 text-slate-400'}`}>
+                                {idx===quiz.questions.length-1 ? 'Finish Exam' : 'Next Question →'}
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            )
+        }
+
+        const root = ReactDOM.createRoot(document.getElementById('root'));
+        root.render(<App />);
+    </script>
+</body>
+</html>
